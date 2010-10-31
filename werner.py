@@ -6,6 +6,7 @@ from operator import itemgetter
 from random import choice
 
 class werner:
+    """Contains methods for running the Werner (1995) model of sand dune evolution"""
     x_len = 0
     y_len = 0
 
@@ -23,10 +24,19 @@ class werner:
     # Shadow map
     shadow_map = 0
     
+    # Iteration number
+    it_num = 0
+    
+    # Avalanche counts per iteration
+    av_count = 0
+    
     def run(self, y, x, initial_value, num_its):
         """Run the model with the given x_len, y_len, initial grid value for the specified
         number of iterations"""
         self.initialise_grid(y, x, initial_value)
+        
+        self.write_file()
+        
         self.initialise_shadow_map()
         
         self.num_iterations = num_its
@@ -36,8 +46,14 @@ class werner:
         self.pd_s = 0.6
         self.pd_ns = 0.4
         
+        self.avcount = np.zeros(num_its + 1)
+        
         # Run the model
         self.main_loop()
+        
+        print self.avcount
+        io.savemat("Counts.mat", { "count":self.avcount})
+        np.save("Counts.npy", self.avcount)
     
     def run_std(self):
         """Runs the Werner (1995) CA model of sand dunes"""
@@ -46,7 +62,7 @@ class werner:
         
         self.initialise_shadow_map()
         
-        self.num_iterations = 1000
+        self.num_iterations = 20
         self.jump_length = 1
         
         self.pd_s = 0.6
@@ -56,8 +72,9 @@ class werner:
         
     def main_loop(self):
         """Runs the main loop of the Werner model"""
-        for iteration in xrange(self.num_iterations):
+        for iteration in xrange(1, self.num_iterations + 1):
             print "At iteration %d" % iteration
+            self.it_num = iteration
             
             ### Select cells randomly without replacement
             x, y = np.meshgrid(np.arange(self.x_len), np.arange(self.y_len))
@@ -72,8 +89,15 @@ class werner:
                 cur_y, cur_x = y[index], x[index]
                 
                 if self.grid[cur_y, cur_x] == 0:
-                    # If there's no slab there then we can't erode it!
-                    continue
+                   # If there's no slab there then we can't erode it!
+                   continue                
+                
+                
+                #if cur_x >= 100 and cur_x <= 200:
+                #    pass
+                #elif self.grid[cur_y, cur_x] == 0:
+                #    # If there's no slab there then we can't erode it!
+                #    continue
                 
                 # Check to see if the cell is in shadow.
                 if self.cell_in_shadow(cur_y, cur_x):
@@ -111,7 +135,7 @@ class werner:
                 
                 self.do_repose(new_y, new_x)
                 
-            self.write_file(iteration)
+            self.write_file()
             
     def calc_locations(self, y, x):
         """Calculates the locations of the four cardinal direction cells from the current cell: B, H, D, and F"""
@@ -155,6 +179,10 @@ class werner:
         """Avalanche a slab from from_y, from_x to to_y, to_x"""
         self.grid[from_y, from_x] -= 1
         self.grid[to_y, to_x] += 1
+        
+        self.avcount[self.it_num] += 1
+        
+        
                 
     def do_repose(self, y, x):
         """Check the angle of repose on a cell and avalanche if needed"""
@@ -256,12 +284,12 @@ class werner:
         # Set the initial values of the array
         self.grid += starting_value
         
-    def write_file(self, it_num):
+    def write_file(self):
         """Writes out files showing the grid"""
-        if it_num % 5 == 0:
+        if self.it_num % 5 == 0:
             plt.imshow(self.grid)
-            plt.savefig("output%3d.png" % it_num)
-            io.savemat("MLOutput%3d" % it_num, { "Grid":self.grid})
+            plt.savefig("output%.4d.png" % self.it_num)
+            io.savemat("MLOutput%.4d" % self.it_num, { "Grid":self.grid})
     
     def add_x(self, x, add):
         """Adds a value to an x co-ordinate in clock-face (modular) arithmetic
