@@ -97,7 +97,7 @@ class werner:
         
         self.initialise_shadow_map()
         
-        self.num_iterations = 100
+        self.num_iterations = 500
         self.jump_length = 1
         
         self.pd_s = 0.6
@@ -206,17 +206,9 @@ class werner:
         
     def diff(self, val1, val2):
         """Returns the difference between the two heights"""    
-        result = abs((val1 * self.slab_ratio) - (val2 * self.slab_ratio))
-    
-        if val1 < val2:
-            # Upwards angle
-            flag = 1
-        elif val1 > val2:
-            # Downwards angle
-            flag = -1
-        else:
-            flag = 0
-        return [result, flag]
+        result = (val1 * self.slab_ratio) - (val2 * self.slab_ratio)
+        
+        return result
         
     def calc_diffs(self, y, x, locs):
         """Calculates the differences between the given cell and its neighbours"""
@@ -247,12 +239,18 @@ class werner:
         
         abs_diffs = {}
         
+        
+        
         # Get te absolute values of all of the diffs
         for item, value in diffs.iteritems():
             abs_diffs[item] = abs(value)
+            
 
         
-        just_right_dirs = [diff for diff in diffs.items() if diff[1][0] > 0.5 and diff[1][1] != 0]
+        just_right_dirs = [diff for diff in abs_diffs.items() if diff[1] > 0.5]
+        
+        #print just_right_dirs
+        #raw_input("Press Enter")        
         
         if len(just_right_dirs) == 0:
             # No steep angles in the right direction, so exit
@@ -278,7 +276,7 @@ class werner:
             # Get the direction of our choice
             chosen_dir = chosen[0]
             
-            if chosen[1][1] == -1:
+            if diffs[chosen_dir] > 0:
                 #print "Avalanching to the direction"
                 # Avalanche from the direction we've chosen
                 from_y, from_x = y, x
@@ -288,7 +286,7 @@ class werner:
                 self.avalanche_slab(from_y, from_x, to_y, to_x)
     
                 self.do_repose(to_y, to_x)
-            elif chosen[1][1] == 1:
+            elif diffs[chosen_dir] < 0:
                 #print "Avalanching from the direction"
                 # Avalanche to the direction we've chosen
                 from_y, from_x = locs[chosen_dir]['y'], locs[chosen_dir]['x']
