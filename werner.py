@@ -4,6 +4,7 @@ from scipy import io
 import math
 from operator import itemgetter
 from random import choice
+import time
 
 class werner:
     """Contains methods for running the Werner (1995) model of sand dune evolution"""
@@ -21,6 +22,9 @@ class werner:
     # Grid variable
     grid = 0
     
+    altered = False
+    depth = 0
+    
     # Shadow map
     shadow_map = 0
     
@@ -30,9 +34,8 @@ class werner:
     # Avalanche counts per iteration
     av_count = 0
     
-    def run(self, y, x, initial_value, num_its):
-        """Run the model with the given x_len, y_len, initial grid value for the specified
-        number of iterations"""
+    def run(self, y, x, initial_value, num_its, altered):
+        """Run the model with the arguments: y_length, x_length, initial_value, number_of_iterations, altered"""
         self.initialise_grid(y, x, initial_value)
         
         self.write_file()
@@ -45,6 +48,38 @@ class werner:
         self.jump_length = 1
         self.pd_s = 0.6
         self.pd_ns = 0.4
+        
+        self.altered = altered
+        
+        if self.altered == True:
+            # Create the depth grid
+            self.depth = np.zeros( (y, x) )
+            
+            # Set the main depression
+            self.depth[:, range(110, 191)] = -10
+            
+            # Run down to it
+            self.depth[:, 109] = -9
+            self.depth[:, 108] = -8
+            self.depth[:, 107] = -7
+            self.depth[:, 106] = -6
+            self.depth[:, 105] = -5
+            self.depth[:, 104] = -4
+            self.depth[:, 103] = -3
+            self.depth[:, 102] = -2
+            self.depth[:, 101] = -1
+            
+            # Run up from it
+            self.depth[:, 191] = -9
+            self.depth[:, 192] = -8
+            self.depth[:, 193] = -7
+            self.depth[:, 194] = -6
+            self.depth[:, 195] = -5
+            self.depth[:, 196] = -4
+            self.depth[:, 197] = -3
+            self.depth[:, 198] = -2
+            self.depth[:, 199] = -1
+            
         
         self.avcount = np.zeros(num_its + 1)
         
@@ -62,13 +97,22 @@ class werner:
         
         self.initialise_shadow_map()
         
-        self.num_iterations = 20
+        self.num_iterations = 100
         self.jump_length = 1
         
         self.pd_s = 0.6
         self.pd_ns = 0.4
         
+        self.avcount = np.zeros(self.num_iterations + 1)
+        
+        
+        before = time.time()
         self.main_loop()
+        after = time.time()
+        
+        time_taken = after - before
+        
+        print "Took %f% seconds", time_taken
         
     def main_loop(self):
         """Runs the main loop of the Werner model"""
@@ -88,10 +132,18 @@ class werner:
                 # Get the current y and x indices
                 cur_y, cur_x = y[index], x[index]
                 
-                if self.grid[cur_y, cur_x] == 0:
-                   # If there's no slab there then we can't erode it!
-                   continue                
                 
+                if self.altered == False:
+                    # Use the standard version
+                    if self.grid[cur_y, cur_x] == 0:
+                       # If there's no slab there then we can't erode it!
+                       continue
+                else:
+                    # Use the altered version of checking if we can erde
+                    if self.grid[cur_y, cur_x] == self.depth[cur_y, cur_x]:
+                        # We can't erode it, so continue
+                        continue
+    
                 
                 #if cur_x >= 100 and cur_x <= 200:
                 #    pass
@@ -192,6 +244,13 @@ class werner:
         
         locs = self.calc_locations(y, x)
         diffs = self.calc_diffs(y, x, locs)
+        
+        abs_diffs = {}
+        
+        # Get te absolute values of all of the diffs
+        for item, value in diffs.iteritems():
+            abs_diffs[item] = abs(value)
+
         
         just_right_dirs = [diff for diff in diffs.items() if diff[1][0] > 0.5 and diff[1][1] != 0]
         
