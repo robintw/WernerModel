@@ -53,33 +53,7 @@ class werner:
         
         if self.altered == True:
             # Create the depth grid
-            self.depth = np.zeros( (y, x) )
-            
-            # Set the main depression
-            self.depth[:, range(110, 191)] = -10
-            
-            # Run down to it
-            self.depth[:, 109] = -9
-            self.depth[:, 108] = -8
-            self.depth[:, 107] = -7
-            self.depth[:, 106] = -6
-            self.depth[:, 105] = -5
-            self.depth[:, 104] = -4
-            self.depth[:, 103] = -3
-            self.depth[:, 102] = -2
-            self.depth[:, 101] = -1
-            
-            # Run up from it
-            self.depth[:, 191] = -9
-            self.depth[:, 192] = -8
-            self.depth[:, 193] = -7
-            self.depth[:, 194] = -6
-            self.depth[:, 195] = -5
-            self.depth[:, 196] = -4
-            self.depth[:, 197] = -3
-            self.depth[:, 198] = -2
-            self.depth[:, 199] = -1
-            
+            self.depth = np.load("Gradual_Stepped_Full.npy")
         
         self.avcount = np.zeros(num_its + 1)
         
@@ -112,7 +86,7 @@ class werner:
         
         time_taken = after - before
         
-        print "Took %f% seconds", time_taken
+        print "Took %f seconds", time_taken
         
     def main_loop(self):
         """Runs the main loop of the Werner model"""
@@ -143,20 +117,12 @@ class werner:
                     if self.grid[cur_y, cur_x] == self.depth[cur_y, cur_x]:
                         # We can't erode it, so continue
                         continue
-    
-                
-                #if cur_x >= 100 and cur_x <= 200:
-                #    pass
-                #elif self.grid[cur_y, cur_x] == 0:
-                #    # If there's no slab there then we can't erode it!
-                #    continue
                 
                 # Check to see if the cell is in shadow.
                 if self.cell_in_shadow(cur_y, cur_x):
                     # If it's in shadow then we can't erode it, so go to the next random cell                    
                     continue
                 
-                ## TODO: Fix probability of erosion stuff below
                 if True:
                     # Move a slab
                     self.grid[cur_y, cur_x] -= 1
@@ -204,18 +170,12 @@ class werner:
     
         return locs
         
-    def diff(self, val1, val2):
-        """Returns the difference between the two heights"""    
-        result = (val1 * self.slab_ratio) - (val2 * self.slab_ratio)
-        
-        return result
-        
     def calc_diffs(self, y, x, locs):
         """Calculates the differences between the given cell and its neighbours"""
         res = {}
         
         for item, value in locs.iteritems():
-            res[item] = self.diff(self.grid[y, x], self.grid[value['y'], value['x']])
+            res[item] = self.slab_ratio * (self.grid[y, x] - self.grid[value['y'], value['x']])
     
         return res
         
@@ -286,7 +246,7 @@ class werner:
                 self.avalanche_slab(from_y, from_x, to_y, to_x)
     
                 self.do_repose(to_y, to_x)
-            elif diffs[chosen_dir] < 0:
+            else:
                 #print "Avalanching from the direction"
                 # Avalanche to the direction we've chosen
                 from_y, from_x = locs[chosen_dir]['y'], locs[chosen_dir]['x']
@@ -314,7 +274,7 @@ class werner:
                 return True
             elif orig_value + height_needed > max_in_row:
                 return False
-            
+            # Move to the left
             x = self.add_x(x, -1)
         
         return False
@@ -345,7 +305,7 @@ class werner:
         """Writes out files showing the grid"""
         if self.it_num % 5 == 0:
             plt.imshow(self.grid)
-            plt.savefig("output%.4d.png" % self.it_num)
+            plt.savefig("output%.4d.png" % self.it_num, bbox_inches='tight')
             io.savemat("MLOutput%.4d" % self.it_num, { "Grid":self.grid})
     
     def add_x(self, x, add):
@@ -357,5 +317,17 @@ class werner:
         """Adds a value to an y co-ordinate in clock-face (modular) arithmetic
         using the y_len specified in the class"""
         return (y + add) % self.y_len
+    
+    
+    
+    ######## Utility functions
+    
+    def save_envi(self, in_mat, out_file):
+        a = io.loadmat(in_mat)["Grid"]
+        
+        np.savetxt(out_file, a, fmt="%1d")
+    
+    def create_gradual_grid(self, depth):
+        pass
     
     

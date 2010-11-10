@@ -1,8 +1,7 @@
 import matplotlib.pyplot as plt
 from scipy import io
 
-|
-a = io.loadmat("MLOutput1000.mat")
+a = io.loadmat("MLOutput300.mat")
 g = a["Grid"]
 
 plt.imshow(g)
