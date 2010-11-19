@@ -1,5 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
 from scipy import io
 import math
 from operator import itemgetter
@@ -54,6 +53,38 @@ class werner:
         if self.altered == True:
             # Create the depth grid
             self.depth = np.load("Gradual_Stepped_Full.npy")
+        
+        self.avcount = np.zeros(num_its + 1)
+        
+        # Run the model
+        self.main_loop()
+        
+        print self.avcount
+        io.savemat("Counts.mat", { "count":self.avcount})
+        np.save("Counts.npy", self.avcount)
+        
+    def run_altered(self, depth):
+        x = 500
+        y = 200
+        initial_value = 3
+        num_its = 2000
+        
+        self.initialise_grid(y, x, initial_value)
+        
+        self.write_file()
+        
+        self.initialise_shadow_map()
+        
+        self.num_iterations = num_its
+        
+        # Standard parameter values
+        self.jump_length = 1
+        self.pd_s = 0.6
+        self.pd_ns = 0.4
+        
+        self.create_gradual_grid(depth)
+        
+        self.altered = True
         
         self.avcount = np.zeros(num_its + 1)
         
@@ -304,8 +335,8 @@ class werner:
     def write_file(self):
         """Writes out files showing the grid"""
         if self.it_num % 5 == 0:
-            plt.imshow(self.grid)
-            plt.savefig("output%.4d.png" % self.it_num, bbox_inches='tight')
+            #plt.imshow(self.grid)
+            #plt.savefig("output%.4d.png" % self.it_num, bbox_inches='tight')
             io.savemat("MLOutput%.4d" % self.it_num, { "Grid":self.grid})
     
     def add_x(self, x, add):
@@ -328,6 +359,44 @@ class werner:
         np.savetxt(out_file, a, fmt="%1d")
     
     def create_gradual_grid(self, depth):
-        pass
+        # Create array of zeros
+        self.depth = np.zeros( (200, 500) )        
+        
+        # NOT NEEDED - ZERO ANYWAY!
+        # Set the beginning and end 100 columns to 0
+        #d[:, range(0, 101)] = 0
+        #d[:, range(400, 501)] = 0
+        
+        num_cells = depth * 10
+        
+        starting_col = 100
+        
+        for i in range(-1, (-1 * depth), -1):
+            self.depth[:, range(starting_col, starting_col + 10)] = i
+            starting_col += 10
+        
+        print "Starting col afer descent", starting_col        
+        
+        num_flat = 300 - (num_cells * 2) + 10
+        
+        print "Num flat", num_flat
+        
+        self.depth[:, range(starting_col, starting_col + num_flat)] = (-1 * depth)
+        starting_col = starting_col + num_flat
+        
+        print starting_col
+        
+        for i in range((-1 * depth), 0, 1):
+            self.depth[:, range(starting_col, starting_col + 10)] = i
+            starting_col += 10
+            
+        # Save the grid to a file
+        np.save("DepthGrid.npy", self.depth)
+        
+        line = self.depth[0]
+        
+        from scipy.integrate import trapz
+        
+        print trapz(line)
     
     
